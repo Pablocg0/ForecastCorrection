@@ -1,2 +1,2 @@
 # ForecastCorrection
-correction of meteorological variables made by a forecast using neural networks
+Correction of meteorological variables made by a forecast using neural networks
