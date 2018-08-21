@@ -26,7 +26,7 @@ def conver1D(array):
     l = array.shape
     total = np.zeros((0, l[1] * l[2]), dtype=np.float32)
     i = 0
-    for i in range(120):
+    for i in range(48):
         tempData = array[i]
         array1D = []
         for x in tempData:
@@ -47,7 +47,7 @@ def divData(data, numRow, numColumns):
     """
     totalArrays = numRow * numColumns
     total = np.zeros((0, totalArrays), dtype=np.float32)
-    for i in range(120):
+    for i in range(48):
         dataValue = data[i]
         array1D = []
         rows = []
@@ -77,7 +77,7 @@ def makeDates(date):
     date = date + ' 00:00:00'
     d = datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
     listDates.append(d)
-    for x in range(119):
+    for x in range(47):
         d = d + timedelta(hours=1)
         listDates.append(d)
     allData = df.DataFrame(listDates, columns=['fecha'])
@@ -282,7 +282,7 @@ def open_netcdf(ls, nameFile, cadena, pathCopyData):
     return data
 
 
-def readFiles(opt, path, pathCopyData, minlat, maxlat, minlon, maxlon, variables, estacion):
+def readFiles(opt, path, pathCopyData, lat, lon , variables, estaciones):
     """
     Function to read all NetCDF files that are in the specified path
     and named by the format Dom1_year-month-day.nc
@@ -313,7 +313,13 @@ def readFiles(opt, path, pathCopyData, minlat, maxlat, minlon, maxlon, variables
         print(cadena)
         try:
             net = open_netcdf(ls, tfil, cadena, pathCopyData)
-            checkFile(net, tfil, f[0], opt, path, minlat, maxlat, minlon, maxlon, variables,estacion)
+            for xs in range(len(estaciones)):
+                minlat = float(lat[xs])
+                maxlat = float(lat[xs])
+                minlon = float(lon[xs])
+                maxlon = float(lon[xs])
+                estacion = estaciones[xs]
+                checkFile(net, tfil, f[0], opt, path, minlat, maxlat, minlon, maxlon, variables,estacion)
             tfileCopy.remove(tfil)
             tbaseCopy.remove(tbas)
         except (OSError, EOFError) as e:
@@ -417,7 +423,7 @@ def checkFile(net, name, date, opt, path, minlat, maxlat, minlon, maxlon, variab
 
 def init():
     config = configparser.ConfigParser()
-    config.read('/home/pablo/Documentos/Estaciones_EMAS/Modulos/Preprocesamiento/confMakeCsv.conf')
+    config.read('/home/pablo/ForecastCorrection/ForecastCorrection/Modulos/Preprocesamiento/confMakeCsv.conf')
     path = config.get('makeCsv', 'path')
     pathCsv = config.get('makeCsv', 'pathCsv')
     pathCopyData = config.get('makeCsv', 'pathCopyData')
@@ -438,15 +444,12 @@ def init():
         totalFiles(pathCopyData, pathNetCDF, dateInit, dateFinal)
     elif mode == 'P':
         print('procesamiento')
-        for xs in range(len(estaciones)):
-            minlon = float(lon[xs])
-            maxlon = float(lon[xs])
-            minlat = float(lat[xs])
-            maxlat = float(lat[xs])
-            readFiles(2, path, pathCopyData, minlat, maxlat, minlon, maxlon, variables, estaciones[xs])
-            for i in variables:
-                print(i)
-                readCsv(i, path, pathCsv,estaciones[xs])
+        readFiles(2, path, pathCopyData, lat, lon, variables, estaciones)
+        for i in variables:
+            print(i)
+            for xs in estaciones:
+                readCsv(i, path, pathCsv,xs)
 
 
 init()
+

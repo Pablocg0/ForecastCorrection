@@ -16,6 +16,7 @@ def saveData(estacion, variable, startDate, endDate, dirNetcdf, dirSave):
     total_data =  data_for.merge(data_obs, how='left', on='fecha')
     total_data = total_data.dropna(axis=0, how='any')
     total_data = total_data.reset_index(drop = True)
+    print('save')
     total_data.to_csv(dirSave+estacion+'_'+variable+'.csv',encoding='utf-8',index=False)
     #graph(total_data)
 
@@ -65,7 +66,7 @@ def graph(data):
 
 def init():
     config = configparser.ConfigParser()
-    config.read('confSaveData.conf')
+    config.read('/home/pablo/ForecastCorrection/ForecastCorrection/Modulos/Preprocesamiento/confSaveData.conf')
     estaciones = config.get('saveData','estaciones')
     variables = config.get('saveData', 'variables')
     startDate =  config.get('saveData', 'startDate')
@@ -73,5 +74,9 @@ def init():
     dirNetcdf = config.get('saveData', 'pathNetCDF')
     dirSave =  config.get('saveData', 'pathSave')
     estaciones = estaciones.split()
+    print(estaciones)
     for xs in estaciones:
+        print(xs)
         saveData(xs, variables, startDate, endDate, dirNetcdf,dirSave)
+
+init()
