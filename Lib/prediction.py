@@ -12,7 +12,7 @@ def prediction_normal(estacion, arrayPred, variable, dirTrain):
 
     model = Sequential()
 
-    model = load_model(dirTrain + name + '_drop.h5', {'tf': tf})
+    model = load_model(dirTrain + name + '_complete_sgd.h5', {'tf': tf})
 
     for xs in arrayPred:
         pred = model.predict(xs)
@@ -26,7 +26,7 @@ def prediction_recurrent(estacion, arrayPred, variable, dirTrain):
 
     model = Sequential()
 
-    model = load_model(dirTrain + name + '_recurrent.h5', {'tf': tf})
+    model = load_model(dirTrain + name + '_recurrent_total.h5', {'tf': tf})
 
     for xs in arrayPred:
         xs = np.reshape(xs, (xs.shape[0], 1, xs.shape[1]))

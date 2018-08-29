@@ -3,6 +3,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
+from datetime import datetime, timedelta
 import configparser
 import prediction as pre
 import numpy as np
@@ -10,58 +11,131 @@ import pandas as pd
 import os
 
 def training(estacion, startDate, endDate,dirData, dirTraining, variable, option):
-    name_file = estacion +'_'+variable+'.csv'
+    name_file = estacion +'_complete.csv'
     if os.path.exists(dirData + name_file):
         data = pd.read_csv(dirData + name_file)
         data_pred = data
+        #data = data.sort_values(['fecha'])
         data = data[data['fecha'] < endDate]
         if option == 2:
             non_data = data.drop(['fecha'], axis=1)
             #non_data = non_data.values
             #look_back = 1
             #trainX, trainY = create_dataset(non_data, look_back)
-            trainX, trainY = create_data(non_data)
+            trainY = create_data(non_data)
+            trainY = np.array(trainY)
+            trainY2 = trainY.reshape((1,len(trainY)))
+
+            #trainX, trainY = create_terc(data, estacion, 'T2_0')
+
+            trainX = exp(data, estacion, 'T2_0')
+            #print(data_set)
+            #return 0
             #print(non_data)
             #print(trainX)
             #print(trainY)
             #return 0
             #trainX = normalize(trainX)
             #trainY = normalize(trainY)
-            trainX = np.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
+            #trainX = np.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
             nn(trainX, trainY, estacion,variable,dirTraining, option)
-            test(data_pred, estacion, '2017-01-01', '2017-05-01', dirTraining, variable, option)
+            #nn(data_set, trainY, estacion,variable,dirTraining, option)
+            test(data_pred, estacion, '2017-11-01', '2017-12-31', dirTraining, variable, option)
         else:
-            x_train = normalize(data['T2_0'])
-            y_target = normalize(data['val_met_tmp'])
+            complete_data = data.drop(['fecha','val_met_tmp'], axis=1)
+            complete_data = complete_data.reset_index(drop=True)
+            #x_train = normalize(data['T2_0'])
+            x_train = normalize(complete_data)
+            y_target = normalize1(data['val_met_tmp'])
             nn(x_train, y_target, estacion,variable,dirTraining,option)
-            test(data_pred, estacion, '2017-01-01', '2017-05-01', dirTraining, variable, option)
+            test(data_pred, estacion, '2017-11-01', '2017-12-31', dirTraining, variable, option)
 
 
 
 def normalize(data):
-    min_max_scaler = preprocessing.MinMaxScaler()
     #data = data.fillna(value=-1)
-    data_array = np.asarray(data)
-    data_array = data_array.reshape(len(data_array),-1)
-    data_normalize = min_max_scaler.fit_transform(data_array)
+    data_array = data.as_matrix()
+    #data_array = data_array.reshape(len(data_array),-1)
+    min_max_scaler = preprocessing.MinMaxScaler()
+    data_normalize = min_max_scaler.fit_transform(np.array(data_array))
     return data_normalize
 
 
-def convert_array(data):
-    data_array = []
+def normalize1(data):
+    #data_array = data.values
+    data_array = data
+    data_array = data_array.reshape(len(data_array),-1)
+    min_max_scaler = preprocessing.MinMaxScaler(feature_range=(0, 1))
+    data_normalize = min_max_scaler.fit_transform(np.array(data_array))
+    return data_normalize
+
+def exp(data, estacion, variable):
+    data_temp = data.drop(['fecha','val_met_tmp'], axis =1)
+    data_temp = data_temp.values
+    data_array = normalize1(data_temp)
+    data_3d = data_array.reshape((data_array.shape[0],1,7))
+    return data_3d
+
+
+def create_terc(data, estacion,variable):
+    #print(data)
+    data = data.reset_index(drop=True)
+    array_date = []
+    fecha = data['fecha']
+    # data_variable = data[variable] #valor de las estaciones  [samples, time steps, features],
+    # data_temp = data.drop(['fecha', 'val_met_tmp'], axis=1)
+    for xs in np.asarray(fecha):
+        datef = datetime.strptime(xs, '%Y-%m-%d %H:%M:%S')
+        array_date.append(datef.hour)
+    frame_hours = pd.DataFrame(array_date, columns=['hora'])
+    data = pd.concat([data,frame_hours], axis=1)
+
+    data_meta = []
+    total_data = np.zeros((24,500,5))
+    for xs in range(24):
+        data_hours = data[data['hora']==xs]
+        data_hours = data_hours.drop_duplicates(subset='fecha', keep='first')
+        data_hours = data_hours.reset_index(drop=True)
+        data_hours = data_hours.drop(['hora'], axis =1)
+        data_meta_temp = normalize1(data_hours['val_met_tmp'].values)
+        print(data_meta_temp.shape)
+        data_meta.append(convert(data_meta_temp[:500]))
+        data_hours = data_hours.drop(['fecha','val_met_tmp'], axis =1)
+        data_temp = normalize(data_hours)
+        data_temp = data_temp[:500]
+        data_3d = data_temp.reshape(data_temp.shape[0],5)
+        total_data[xs] = data_3d
+
+    print(total_data.shape)
+    data_y = np.array(data_meta)
+    #data_y = data_meta
+    print(data_y.shape)
+    data_y = data_y.reshape((500*24,1))
+    data_x = total_data
+
+
+    return data_x, data_y
+    # array_date = normalize1(np.array(array_date))
+    # array_date = array_date.reshape(len(array_date),1)
+    # data_variable = normalize1(data_variable)
+    # data_variable = data_variable.reshape(len(data_variable),1)
+    # other_data = normalize(data_temp)
+    # return np.array([data_temp, len(array_date), 5])
+
+def convert(data):
+    list =[]
     for xs in data:
-        data_array.append(xs[0])
-    return data_array
+        list.append(xs[0])
+    return np.array(list)
+
 
 
 def create_data(data):
-    x_train = normalize(data['T2_0'])
-    x_data = x_train.reshape((len(x_train),1))
-    y_target = normalize(data['val_met_tmp'])
+    y_target = normalize1(data['val_met_tmp'])
     y_data = []
     for xs in y_target:
         y_data.append(xs[0])
-    return x_data, y_data
+    return y_data
 
 
 def create_dataset(dataset, look_back=1):
@@ -71,6 +145,17 @@ def create_dataset(dataset, look_back=1):
 		dataX.append(a)
 		dataY.append(dataset[i + look_back, 0])
 	return np.array(dataX), np.array(dataY)
+
+def desNorm(data,estacion):
+    real = []
+    data_minMax= pd.read_csv('/ServerData/DataForecastCorrection/DataTraining/valoresMaxMin.csv')
+    valores = data_minMax[(data_minMax['estacion']==estacion)]
+    maxx = valores['maximo'].values[0]
+    minn = valores['minimo'].values[0]
+    for xs in data:
+        realVal = (xs * (maxx - minn)) + minn
+        real.append(realVal)
+    return real
 
 
 def nombreEst(station):
@@ -141,22 +226,47 @@ def nombreEst(station):
 
 
 def test(data, estacion, startDate, endDate, dirTraining, variable, option):
+    print(estacion)
     data = data[(data['fecha']>= startDate) & (data['fecha'] <= endDate)]
+    data = data.drop_duplicates(subset='fecha', keep='first')
+    min_max_scaler = preprocessing.MinMaxScaler(feature_range=(0, 1))
     if option == 2:
         #non_data = data.drop(['fecha'], axis=1)
         #non_data = non_data.values
-        look_back = 1
+        #look_back = 1
         #trainX, trainY = create_dataset(non_data, look_back)
-        trainX, trainY = create_data(data)
-        data_red = normalize(trainX)
-        nondata_red = np.reshape(data_red, (data_red.shape[0], 1, data_red.shape[1]))
+        #trainX, trainY = create_data(data)
+        #data_red = normalize(trainX)
+        #nondata_red = np.reshape(data_red, (data_red.shape[0], 1, data_red.shape[1]))
         #print(nondata_red)
-        data_correction = pre.main_prediction(estacion, nondata_red, variable, dirTraining, option)
+        data_temp = data.drop(['fecha','val_met_tmp'], axis =1)
+        data_temp = data_temp.values
+        data_array = data_temp
+        data_array = data_array.reshape(len(data_array),-1)
+        data_normalize = min_max_scaler.fit_transform(np.array(data_array))
+        data_3d = data_normalize.reshape((data_normalize.shape[0],1,7))
+        #trainX = exp(data, estacion, 'T2_0')
+        data_correction = pre.main_prediction(estacion, data_3d, variable, dirTraining, option)
     elif option == 1:
-        data_prediccion = normalize(data['T2_0'])
-        data_correction = pre.main_prediction(estacion, data_prediccion, variable, dirTraining, option)
-    data_prediccion = normalize(data['T2_0'])
-    data_estacion = normalize(data['val_met_tmp'])
+        complete_data = data.drop(['fecha','val_met_tmp'], axis=1)
+        #data_prediccion = normalize(data['T2_0'])
+        data_prediccion = normalize(complete_data)
+        #data_prediccion = entr(data_prediccion)
+        #print(data_prediccion.shape)
+        array_pred = []
+        for xs in data_prediccion:
+            array_pred.append(convert(xs))
+        #print(convert(data_prediccion[0]).shape)
+        data_correction = pre.main_prediction(estacion, array_pred, variable, dirTraining, option)
+    #data_prediccion = normalize1(data['T2_0'])
+    data_prediccion = data['T2_0'].values
+    #data_estacion = normalize1(data['val_met_tmp'])
+    data_estacion = data['val_met_tmp'].values
+    data_correction = desNorm(data_correction, estacion)
+    #data_correction = min_max_scaler.inverse_transform(data_correction)
+    #print(data_prediccion)
+    #print(data_estacion)
+    #print(data_correction)
     #data_correction = pre.main_prediction(estacion, data_prediccion, variable, dirTraining, option)
     plt.figure(figsize=(22.2,11.4))
     plt.plot(data_prediccion ,color='tomato', linestyle="solid", marker='o', label='Pronostico')
@@ -182,11 +292,11 @@ def test(data, estacion, startDate, endDate, dirTraining, variable, option):
 
 def option_name(option):
     if option == 1:
-        return 'drop'
+        return 'normal_sgd'
     elif option == 2:
         return 'recurrent'
     elif option == 3:
-        return 'baseline' 
+        return 'baseline'
 
 
 def init():
@@ -200,10 +310,10 @@ def init():
     variables = config.get('training', 'variables')
     estaciones = estaciones.split()
     #variables = variables.split()
-    for xs in estaciones:
-        training(xs, startDate, endDate, dirData, dirTraining, variables, 1)
     #for xs in estaciones:
-    #    training(xs, startDate, endDate, dirData, dirTraining, variables, 2)
+    #    training(xs, startDate, endDate, dirData, dirTraining, variables, 1)
+    for xs in estaciones:
+        training(xs, startDate, endDate, dirData, dirTraining, variables, 2)
     #for xs in estaciones:
     #    training(xs, startDate, endDate, dirData, dirTraining, variables, 3)
 

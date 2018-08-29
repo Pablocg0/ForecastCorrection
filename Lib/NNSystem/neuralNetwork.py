@@ -19,19 +19,20 @@ def train(x_data, y_data, estacion, variable, dirTrain):
 
     model = Sequential()
 
-    model.add(Dense(256, activation= 'sigmoid', input_dim = 1))
+    model.add(Dense(256, activation= 'relu', input_dim = 5))
     model.add(Dropout(0.2))
-    model.add(Dense(512, activation= 'sigmoid'))
+    model.add(Dense(512, activation= 'relu'))
     model.add(Dropout(0.2))
+    model.add(Dense(256, activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
 
     model = multi_gpu_model(model, gpus=4)
 
-    model.compile(loss='mean_squared_error', optimizer='adam')
-    tensorboard = TensorBoard(log_dir="logs/train_drop/"+estacion+'_'+variable )
-    stop_callback = EarlyStopping(monitor='val_loss',min_delta=0.0001,patience=150, mode='auto')
+    model.compile(loss='mean_absolute_percentage_error', optimizer='adam')
+    tensorboard = TensorBoard(log_dir="logs/train_complete_sgd/"+estacion+'_'+variable )
+    stop_callback = EarlyStopping(monitor='val_loss',min_delta=0.001,patience=150, mode='auto')
     model.fit(x_data, y_data, epochs=300,  batch_size=64*16, validation_split= 0.05 ,callbacks=[tensorboard,stop_callback])
-    model.save(dirTrain + name + '_drop.h5')
+    model.save(dirTrain + name + '_complete_sgd.h5')
 
 
 def train_recurrent(x_data, y_data, estacion, variable, dirTrain):
@@ -40,17 +41,18 @@ def train_recurrent(x_data, y_data, estacion, variable, dirTrain):
     look_back = 1
 
     model = Sequential()
-    model.add(LSTM(10, input_shape=(1, look_back)))
+    model.add(LSTM(10, input_shape=(x_data.shape[1],7), use_bias=True, bias_initializer='ones'))
     model.add(Dense(1))
 
     model = multi_gpu_model(model, gpus=4)
 
 
-    model.compile(loss='mean_squared_error', optimizer='adam')
-    tensorboard = TensorBoard(log_dir="logs/recurrent/"+estacion+'_'+variable )
-    stop_callback = EarlyStopping(monitor='val_loss',min_delta=0.0001,patience=150, mode='auto')
-    model.fit(x_data, y_data, epochs= 300,  batch_size=64*16, verbose=2, validation_split=0.05, callbacks=[tensorboard,stop_callback])
-    model.save(dirTrain + name + '_recurrent.h5')
+    model.compile(loss='logcosh', optimizer='adam')
+    tensorboard = TensorBoard(log_dir="logs/recurrent_total/"+estacion+'_'+variable )
+    stop_callback = EarlyStopping(monitor='val_loss',min_delta=0.001,patience=150, mode='auto')
+    #model.fit(x_data, y_data, epochs= 300,  batch_size=64*16, verbose=2, validation_split=0.05, callbacks=[tensorboard,stop_callback])
+    model.fit(x_data, y_data, epochs= 300, batch_size=64*16, validation_split=0.05, callbacks=[tensorboard,stop_callback])
+    model.save(dirTrain + name + '_recurrent_total.h5')
 
 
 
@@ -65,7 +67,7 @@ def train_baseline(x_data, y_data, estacion, variable, dirTrain):
 
     model.compile(loss='mean_squared_error', optimizer='adam')
     tensorboard = TensorBoard(log_dir="logs/baseline2/"+estacion+'_'+variable)
-    stop_callback = EarlyStopping(monitor='val_loss',min_delta=0.0001,patience=150, mode='auto')
+    stop_callback = EarlyStopping(monitor='val_loss',min_delta=0.001,patience=150, mode='auto')
     model.fit(x_data, y_data, epochs=300,  batch_size=64*16, verbose=1, validation_split=0.05, callbacks=[tensorboard,stop_callback])
     model.save(dirTrain + name + '_baseline.h5')
 
